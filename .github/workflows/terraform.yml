@@ -1,0 +1,132 @@
+name: Terraform Validation
+
+on:
+  pull_request:
+    paths:
+      - 'terraform/**'
+      - 'terragrunt/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - 'terragrunt/**'
+
+jobs:
+  validate:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.6.0"
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+        working-directory: terraform
+
+      - name: Terraform Init
+        run: terraform init -backend=false
+        working-directory: terraform
+
+      - name: Terraform Validate
+        run: terraform validate
+
+  # ===========================================================================
+  # Terraform Plan (for PRs)
+  # ===========================================================================
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.event_name == 'pull_request'
+    
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: terraform
+        run: |
+          terraform plan -var-file=environments/dev/terraform.tfvars -no-color -out=tfplan 2>&1 | tee plan_output.txt
+        continue-on-error: true
+
+      - name: Update PR with Plan
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/plan_output.txt', 'utf8');
+            const maxLength = 65000;
+            const truncatedPlan = plan.length > maxLength 
+              ? plan.substring(0, maxLength) + '\n\n... (truncated)'
+              : plan;
+            
+            const output = `#### Terraform Plan 📝
+            
+            <details><summary>Show Plan</summary>
+            
+            \`\`\`terraform
+            ${truncatedPlan}
+            \`\`\`
+            
+            </details>
+            
+            *Pushed by: @${{ github.actor }}, Action: \`${{ github.event_name }}\`*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+      - name: Terraform Plan Status
+        if: steps.plan.outcome == 'failure'
+        run: exit 1
+
+  # ===========================================================================
+  # Security Scanning with tfsec
+  # ===========================================================================
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: validate
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: terraform
+          soft_fail: true
+

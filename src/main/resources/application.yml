@@ -1,0 +1,52 @@
+# =============================================================================
+# Spring Boot Application Configuration
+# =============================================================================
+
+spring:
+  application:
+    name: health-api
+
+server:
+  port: 8080
+  shutdown: graceful
+
+# Application properties
+app:
+  version: 1.0.0
+
+# =============================================================================
+# Actuator Configuration
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logging:
+  level:
+    root: INFO
+    com.example.healthapi: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# =============================================================================
+# Graceful Shutdown
+# =============================================================================
+spring.lifecycle:
+  timeout-per-shutdown-phase: 30s
+
