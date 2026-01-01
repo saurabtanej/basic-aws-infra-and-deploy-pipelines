@@ -1,0 +1,143 @@
+# =============================================================================
+# New Relic Java Agent Configuration
+# =============================================================================
+# This file configures the New Relic Java agent for APM monitoring.
+# 
+# Configuration Priority:
+# 1. Environment variables (NEW_RELIC_LICENSE_KEY, NEW_RELIC_APP_NAME, etc.)
+# 2. System properties (-Dnewrelic.config.license_key=xxx)
+# 3. This configuration file
+#
+# For more information, see:
+# https://docs.newrelic.com/docs/apm/agents/java-agent/configuration/java-agent-configuration-config-file/
+
+common: &default_settings
+  # ==========================================================================
+  # License Key
+  # ==========================================================================
+  # Set via environment variable NEW_RELIC_LICENSE_KEY in production
+  license_key: '<%= ENV["NEW_RELIC_LICENSE_KEY"] %>'
+
+  # ==========================================================================
+  # Application Name
+  # ==========================================================================
+  # This is the name your application will appear as in New Relic.
+  app_name: '<%= ENV["NEW_RELIC_APP_NAME"] || "health-api" %>'
+
+  # ==========================================================================
+  # Logging Configuration
+  # ==========================================================================
+  log_level: info
+  
+  # Audit logging (verbose, only enable for debugging)
+  audit_mode: false
+
+  # ==========================================================================
+  # Agent Enabled
+  # ==========================================================================
+  agent_enabled: true
+
+  # ==========================================================================
+  # High Security Mode
+  # ==========================================================================
+  # When enabled, prevents certain data from being sent to New Relic
+  high_security: false
+
+  # ==========================================================================
+  # Distributed Tracing
+  # ==========================================================================
+  distributed_tracing:
+    enabled: true
+
+  # ==========================================================================
+  # Span Events
+  # ==========================================================================
+  span_events:
+    enabled: true
+
+  # ==========================================================================
+  # Transaction Tracer
+  # ==========================================================================
+  transaction_tracer:
+    enabled: true
+    transaction_threshold: apdex_f
+    record_sql: obfuscated
+    log_sql: false
+    stack_trace_threshold: 0.5
+    explain_enabled: true
+    explain_threshold: 0.5
+    top_n: 20
+
+  # ==========================================================================
+  # Error Collector
+  # ==========================================================================
+  error_collector:
+    enabled: true
+    ignore_errors: []
+    ignore_status_codes: 404
+
+  # ==========================================================================
+  # Transaction Events
+  # ==========================================================================
+  transaction_events:
+    enabled: true
+    max_samples_stored: 10000
+
+  # ==========================================================================
+  # Browser Monitoring (Real User Monitoring)
+  # ==========================================================================
+  browser_monitoring:
+    auto_instrument: false
+
+  # ==========================================================================
+  # Application Logging
+  # ==========================================================================
+  application_logging:
+    enabled: true
+    forwarding:
+      enabled: true
+      max_samples_stored: 10000
+    metrics:
+      enabled: true
+    local_decorating:
+      enabled: false
+
+  # ==========================================================================
+  # Slow SQL
+  # ==========================================================================
+  slow_sql:
+    enabled: true
+
+  # ==========================================================================
+  # Thread Profiler
+  # ==========================================================================
+  thread_profiler:
+    enabled: true
+
+  # ==========================================================================
+  # Labels (Custom attributes for filtering)
+  # ==========================================================================
+  labels:
+    environment: '<%= ENV["ENVIRONMENT"] || "local" %>'
+
+# =============================================================================
+# Environment-specific settings
+# =============================================================================
+
+development:
+  <<: *default_settings
+  agent_enabled: false
+
+test:
+  <<: *default_settings
+  agent_enabled: false
+
+staging:
+  <<: *default_settings
+  agent_enabled: true
+
+production:
+  <<: *default_settings
+  agent_enabled: true
+  log_level: warn
+
