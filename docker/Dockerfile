@@ -5,8 +5,9 @@ WORKDIR /app
 COPY src/pom.xml ./pom.xml
 RUN mvn dependency:go-offline -B
 
-COPY src/main ./src/main
-COPY src/test ./src/test
+# Copy to match pom.xml sourceDirectory (main/java, not src/main/java)
+COPY src/main ./main
+COPY src/test ./test
 RUN mvn clean package -DskipTests -B
 RUN java -Djarmode=layertools -jar target/app.jar extract
 
