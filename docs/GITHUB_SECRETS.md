@@ -2,6 +2,16 @@
 
 This document describes all the GitHub secrets required for the CI/CD pipeline.
 
+## Quick Reference
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `AWS_ROLE_ARN` | ✅ Yes | OIDC authentication to AWS (dev) |
+| `AWS_ROLE_ARN_STAGING` | Optional | OIDC for staging environment |
+| `AWS_ROLE_ARN_PROD` | Optional | OIDC for production environment |
+
+> **Why OIDC?** No long-lived credentials, automatic token expiration, better security audit trail. See [Design Decisions](../README.md#why-github-oidc-not-access-keys) in README.
+
 ## Required Secrets
 
 ### AWS Authentication (OIDC - Recommended)
