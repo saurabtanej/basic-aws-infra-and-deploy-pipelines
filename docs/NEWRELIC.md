@@ -127,13 +127,80 @@ NewRelic.addCustomParameter("userId", userId);
 
 ## Alerts
 
-### Recommended Alert Policies
+### Alert Strategy Overview
 
-Create these in New Relic → Alerts & AI → Alert Conditions:
+We use a **dual-layer alerting strategy**:
 
-#### 1. High Error Rate
+| Layer | Tool | Alerts |
+|-------|------|--------|
+| **Infrastructure** | CloudWatch (Terraform) | CPU > 80%, Memory > 80% |
+| **Application** | New Relic | Error rate, response time, Apdex |
 
+### CloudWatch Alarms (Pre-configured in Terraform)
+
+These are automatically created by `terraform/cloudwatch.tf`:
+
+```hcl
+# Already configured - no manual setup needed
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  alarm_name  = "${local.name}-cpu-high"
+  threshold   = 80  # CPU > 80%
+  # ...
+}
+
+resource "aws_cloudwatch_metric_alarm" "memory_high" {
+  alarm_name  = "${local.name}-memory-high"
+  threshold   = 80  # Memory > 80%
+  # ...
+}
 ```
+
+To add SNS notifications, update the Terraform:
+
+```hcl
+resource "aws_cloudwatch_metric_alarm" "cpu_high" {
+  # ... existing config ...
+  alarm_actions = [aws_sns_topic.alerts.arn]
+}
+```
+
+### New Relic Alert Policies
+
+Create these in **New Relic → Alerts & AI → Alert Conditions**:
+
+#### 1. High CPU Utilization (> 80%)
+
+```nrql
+SELECT average(cpuPercent) 
+FROM SystemSample 
+WHERE entityName LIKE 'java-api-%'
+```
+- Threshold: > 80 for 5 minutes
+- Severity: Warning
+
+#### 2. High Memory Utilization (> 80%)
+
+```nrql
+SELECT average(memoryUsedPercent) 
+FROM SystemSample 
+WHERE entityName LIKE 'java-api-%'
+```
+- Threshold: > 80 for 5 minutes
+- Severity: Warning
+
+#### 3. Application Errors/Exceptions
+
+```nrql
+SELECT count(*) 
+FROM TransactionError 
+WHERE appName = 'java-api-dev'
+```
+- Threshold: > 10 errors in 5 minutes
+- Severity: Critical
+
+#### 4. High Error Rate
+
+```nrql
 SELECT percentage(count(*), WHERE error IS true) 
 FROM Transaction 
 WHERE appName = 'java-api-dev'
@@ -141,9 +208,9 @@ WHERE appName = 'java-api-dev'
 - Threshold: > 5% for 5 minutes
 - Severity: Critical
 
-#### 2. Slow Response Time
+#### 5. Slow Response Time (P95)
 
-```
+```nrql
 SELECT percentile(duration, 95) 
 FROM Transaction 
 WHERE appName = 'java-api-dev'
@@ -151,15 +218,22 @@ WHERE appName = 'java-api-dev'
 - Threshold: > 2 seconds for 5 minutes
 - Severity: Warning
 
-#### 3. Low Apdex Score
+#### 6. Low Apdex Score
 
-```
+```nrql
 SELECT apdex(duration, 0.5) 
 FROM Transaction 
 WHERE appName = 'java-api-dev'
 ```
 - Threshold: < 0.7 for 5 minutes
 - Severity: Warning
+
+### Setting Up Alert Notifications
+
+1. Go to **Alerts & AI** → **Notification channels**
+2. Add channels (Email, Slack, PagerDuty, etc.)
+3. Create a **Workflow** to route alerts to channels
+4. Associate the workflow with your alert policies
 
 ## Custom Dashboard
 
