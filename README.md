@@ -142,7 +142,7 @@ This project provides:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/basic-aws-infra-and-deploy-pipelines.git
+git clone https://github.com/saurabtanej/basic-aws-infra-and-deploy-pipelines
 cd basic-aws-infra-and-deploy-pipelines
 ```
 
