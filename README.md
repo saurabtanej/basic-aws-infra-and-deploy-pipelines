@@ -32,6 +32,66 @@ This project provides:
 - **CI/CD Pipeline**: GitHub Actions for automated deployments
 - **Monitoring**: New Relic Java Agent APM + CloudWatch
 
+## Design Decisions
+
+### Why Terragrunt?
+
+We use [Terragrunt](https://terragrunt.gruntwork.io/) instead of Terraform workspaces for multi-environment management because:
+
+| Feature | Terraform Workspaces | Terragrunt |
+|---------|---------------------|------------|
+| **State isolation** | Shared state file | Separate state per environment |
+| **DRY configuration** | Limited | Excellent - inherit common configs |
+| **Environment-specific values** | Variable files | Hierarchical inputs |
+| **Remote state setup** | Manual per workspace | Automatic S3/DynamoDB creation |
+| **Dependency management** | Manual | Built-in `dependency` blocks |
+| **Blast radius** | Higher (shared state) | Lower (isolated states) |
+
+**Key benefits in this project:**
+- `terragrunt/_envcommon/app.hcl` - Shared configuration (health checks, ports)
+- `terragrunt/{env}/terragrunt.hcl` - Environment-specific overrides
+- Automatic S3 bucket and DynamoDB table creation for state
+- Each environment has completely isolated state
+
+### Why Official Terraform Modules?
+
+We use [terraform-aws-modules](https://github.com/terraform-aws-modules) instead of custom modules because:
+
+- **Battle-tested**: Used by thousands of organizations
+- **Maintained**: Regular updates and security patches
+- **Feature-rich**: Covers edge cases we might miss
+- **Documented**: Extensive documentation and examples
+
+| Module | Version | Why |
+|--------|---------|-----|
+| `vpc/aws` | 5.16.0 | Handles NAT, flow logs, DNS settings |
+| `alb/aws` | 9.12.0 | Target groups, listeners, health checks |
+| `ecs/aws` | 5.11.4 | Fargate, auto-scaling, task definitions |
+| `security-group/aws` | 5.2.0 | Ingress/egress rules with descriptions |
+
+### Why New Relic Java Agent (not sidecar)?
+
+For Java APM, the **in-app agent** is the recommended approach because:
+
+- **Deep code-level instrumentation** - Method-level tracing
+- **Transaction tracing** - End-to-end request visibility
+- **Error tracking** - Stack traces with context
+- **Custom metrics** - Via `@Trace` annotations and API
+- **Lower overhead** - Single process vs sidecar container
+
+See [docs/NEWRELIC.md](docs/NEWRELIC.md) for complete setup.
+
+### Why GitHub OIDC (not Access Keys)?
+
+We use OpenID Connect for AWS authentication because:
+
+- **No long-lived credentials** - Tokens expire after each job
+- **No secret rotation** - AWS trusts GitHub's identity provider
+- **Audit trail** - Clear identity in CloudTrail logs
+- **Least privilege** - Scoped to specific repos/branches
+
+See [docs/GITHUB_SECRETS.md](docs/GITHUB_SECRETS.md) for setup.
+
 ## Architecture
 
 ```
